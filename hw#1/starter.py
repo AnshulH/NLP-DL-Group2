@@ -69,7 +69,7 @@ def read_encode(file_name,vocab,words,corpus,threshold):
                     wID = words[t][0]
                 except:
                     wID = words['<unk>'][0]
-                corpus.append(wID)
+                corpus.append(int(wID))
                 
     return [vocab,words,corpus]
 
@@ -90,25 +90,20 @@ class FFNN(nn.Module):
         self.nonLinear2 = nn.ReLU()
         self.linear3 = nn.Linear(256, 2)
         self.logits = nn.Softmax()
-        # self.net = nn.Sequential(
-        #     nn.Linear(9, 128), 
-        #     nn.ReLU(),
-        #     nn.Linear(128, 256),
-        #     nn.ReLU(),
-        #     nn.Linear(256, 2), 
-        #     nn.Softmax()
-        # )
-#          {perform other initializations needed for the FFNN}
 
     def forward(self, src):
-        print(src)
-        # embeds = self.dropout(self.embeds(src))
+        # print(src)
+        embeds = self.embeds(src[0:50])
+        print(embeds)
         # src = src.type(torch.LongTensor)
-        # print(len(src[0:50]))
-        output = nn.ReLU(self.linear1(src[0:50].long()))
-        output = nn.ReLU(self.linear2(output))
-        output = nn.ReLU(self.linear3(output))
-        return nn.Softmax(output)
+        # print(type(src[0]))
+        output = self.linear1(embeds)
+        output = self.nonLinear2(output)
+        output = self.linear2(output)
+        output = self.nonLinear2(output)
+        output = self.linear3(output)
+        output = self.logits(output)
+        return output
 
 #          {add code to implement the FFNN}
         # return self.net(embeds)
@@ -198,14 +193,24 @@ def main():
     print('vocab: %d test: %d' % (len(vocab),len(test)))
     params['vocab_size'] = len(vocab)
     
-    epochs = 1
+    epochs = 10
+    criterion = nn.CrossEntropyLoss()
+
     if params['model'] == 'FFNN':
         model = FFNN(vocab, words, 50, None, 0.1)
         for i in range(epochs):
             model.train()
-            
-            output = model(torch.LongTensor(train))
-            
+
+            output = model(torch.tensor(train, dtype=torch.long))
+            loss = criterion(output, torch.tensor([1] * 50))
+
+            loss.backward()
+            optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+            optimizer.step()
+
+            print("Epoch {}/{} Step {}/{} : Loss {:.4f}".format(1,1,i+1, 1,loss))
+
+
 #          {add code to instantiate the model, train for K epochs and save model to disk}
         
 #     if params.model == 'LSTM':
