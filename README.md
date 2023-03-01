@@ -10,6 +10,7 @@ Best trained models are final_ffnn.pt and lstm_mixed.pt, but if runnning from sc
 ## Running instructions:
 
 ```
+
 python hw1.py -model "model" -trainname "train_file_path" -testname "test_file_path" -validname "valid_file_path"
 
 
@@ -18,5 +19,7 @@ Also LSTM model works on .tok files so be careful while specifying paths for too
 
 ```
 
+
 -model: All allowed arguments ["FFNN", "LSTM", "FFNN_CLASSIFY", "LSTM_CLASSIFY"]
+
 -trainname: Correct path of the train file. Same goes for test and valid paths.
