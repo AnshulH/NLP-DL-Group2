@@ -302,7 +302,6 @@ def LSTM_train(model, data, optimizer, criterion, batch_size, seq_len, clip, dev
   hidden = model.init_hidden(batch_size, device)
     
   for idx in range(0, num_batches - 1, seq_len):  # The last batch can't be a src
-    #   print('works')
       optimizer.zero_grad()
       hidden = model.detach_hidden(hidden)
 
@@ -345,7 +344,6 @@ def evaluate(model, data, criterion, batch_size, seq_len, device):
 
             loss = criterion(prediction, target)
             epoch_loss += loss.item() * seq_len
-    print('works')
     return math.exp(epoch_loss / num_batches)
 
 def make_tensors(file_name,vocab,words):
@@ -583,12 +581,13 @@ def main():
     parser.add_argument('-lr', type=float, default=0.0001)
     parser.add_argument('-dropout', type=int, default=0.35)
     parser.add_argument('-clip', type=int, default=2.0)
-    parser.add_argument('-model', type=str,default='LSTM')
+    parser.add_argument('-model', type=str, default='LSTM')
     parser.add_argument('-savename', type=str,default='lstm')
     parser.add_argument('-loadname', type=str)
-    parser.add_argument('-trainname', type=str,default='wiki.train.txt')
-    parser.add_argument('-validname', type=str,default='wiki.valid.txt')
-    parser.add_argument('-testname', type=str,default='wiki.test.txt')
+    parser.add_argument('-trainname', type=str,default='./hw#1/mix.train.tok')
+    parser.add_argument('-validname', type=str,default='./hw#1/mix.valid.tok')
+    parser.add_argument('-testname', type=str,default='./hw#1/mix.test.tok')
+    args = parser.parse_args()
 
     params = {
         'd_model': 512,
@@ -602,24 +601,35 @@ def main():
         'lr': 0.0001,
         'dropout': 0.35,
         'clip': 2.0,
-        'model': 'FFNN',
+        'model': args.model,
         'savename': 'ffnn',
         'loadname': None,
-        'trainname': './hw#1/mix.train.tok',
-        'validname': './hw#1/mix.valid.tok',
-        'testname': './hw#1/mix.test.tok'
+        'trainname': args.trainname,
+        'validname': args.validname,
+        'testname': args.testname,
     }
-    parser.add_argument("-f", required=False)
-    
-    [vocab,words,train] = read_encode(params['trainname'],[],{},[],3)
-    # print('vocab: %d train: %d' % (len(vocab),len(train)))
-    [vocab,words,test] = read_encode(params['testname'],vocab,words,[],-1)
-    # print('vocab: %d test: %d' % (len(vocab),len(test)))
-    params['vocab_size'] = len(vocab)
 
+    # print(args.model)
+    # print(args.trainname)
+    # print(params['model'])
+    # print(params['trainname'])
+    # parser.add_argument("-f", required=False)
+    
     train_loader = read_encode(params['trainname'],[],{},[],3)
-    model_lstm = LSTM(vocab,words,512,512,2,.35,True).to(device)
+
+    [vocab,words,train] = read_encode_fnn(params['trainname'],[],{},[],3)
+    print('vocab: %d train: %d' % (len(vocab), len(train)))
+    [vocab,words,test] = read_encode_fnn(params['testname'], vocab,words,[],-1)
+    print('vocab: %d test: %d' % (len(vocab),len(test)))
     model_ffnn = FFNN(vocab, words, d_model=100, d_hidden=100, dropout=0.2)
+
+    if params['model'] == 'LSTM' or params['model'] == 'LSTM_CLASSIFY':
+        [vocab,words,train] = read_encode(params['trainname'],[],{},[],3)
+        print('vocab: %d train: %d' % (len(vocab),len(train)))
+        [vocab,words,test] = read_encode(params['testname'],vocab,words,[],-1)
+        print('vocab: %d test: %d' % (len(vocab),len(test)))
+        params['vocab_size'] = len(vocab)
+    model_lstm = LSTM(vocab,words,512,512,2,.35,True).to(device)
 
     if params['model'] == 'FFNN':
         [vocab,words,train] = read_encode_fnn(params['trainname'],[],{},[],3)
@@ -632,6 +642,7 @@ def main():
         optimizer = torch.optim.Adam(model_ffnn.parameters(), lr=0.0003)
         train_perplexity_scores = []
         valid_perplexity_scores = []
+        print(model_ffnn)
 
         for epoch in range(50):
             print(epoch)
@@ -721,10 +732,10 @@ def main():
         pyplot.show()
         
     if params['model'] == 'LSTM':
-        encodings = read_encode('./hw#1/mix.train.tok',[],{},[],3) 
-        train_data,vocab,words = read_alltext('./hw#1/mix.train.tok',20,encodings[0],encodings[1])
-        valid_data,vocab,words = read_alltext('./hw#1/mix.valid.tok',20,vocab,words)
-        test_data,vocab,words = read_alltext('./hw#1/mix.test.tok',20,vocab,words)
+        encodings = read_encode(params['trainname'],[],{},[],3) 
+        train_data,vocab,words = read_alltext(params['trainname'],20,encodings[0],encodings[1])
+        valid_data,vocab,words = read_alltext(params['validname'],20,vocab,words)
+        test_data,vocab,words = read_alltext(params['testname'],20,vocab,words)
 
         criterion = nn.CrossEntropyLoss() 
         batch_size = 20
@@ -776,48 +787,51 @@ def main():
         print('vocab: %d train: %d' % (len(vocab), len(train)))
         [vocab,words,test] = read_encode_fnn(params['testname'], vocab, words,[],-1)
         print('vocab: %d test: %d' % (len(vocab),len(test)))
-        split_bios = read_bios('./hw#1/mix.train.txt', True)
-        windows = create_windows(split_bios, 3)
-        
-        all_sliding_windows = [item[0] for item in windows]
-        all_bio_labels = [item[1] for item in windows]
-        model_ffnn_final = FFNN(vocab, words, d_model=100, d_hidden=100, dropout=0.2)
+        split_bios = read_bios('./hw#1/mix.test.txt', True)
+        # windows = create_windows(split_bios, 3)
+        test_split_bios = read_bios(params['testname'], True)
+        test_windows = create_windows(test_split_bios, 3)
+        all_sliding_windows = [item[0] for item in test_windows]
+        all_bio_labels = [item[1] for item in test_windows]
+
+        model_ffnn = FFNN(vocab, words, d_model=100, d_hidden=100, dropout=0.2)
         BATCH_SIZE = 64
         # print(torch.load('./model/final_ffnn.pt'))
-        model_ffnn_final.load_state_dict(torch.load('./model/train_ffnn.pt')['model_state_dict'])
-        model_ffnn_final.eval()
+        model_ffnn.load_state_dict(torch.load('./model/train_ffnn.pt')['model_state_dict'])
+        model_ffnn.eval()
 
-        print(model_ffnn_final)
+        print(model_ffnn)
         probabilities = []
 
         for i in range(len(all_sliding_windows)):
             all_sliding_windows_for_bio = all_sliding_windows[i]
             context, true_words = make_context_and_true_words_per_bio(all_sliding_windows_for_bio, words)
 
-        bio_label = all_bio_labels[i]
+            bio_label = all_bio_labels[i]
 
-        # Each bio has a probability table (mapping words to their probabilities, given the sequence)
-        log_probability_tables = model_ffnn_final(context)
+            # Each bio has a probability table (mapping words to their probabilities, given the sequence)
+            print(context)
+            log_probability_tables = model_ffnn(context)
 
-        normal_probabilities = torch.FloatTensor([])
+            normal_probabilities = torch.FloatTensor([])
 
-        for idx_curr_context, probability_distributions_for_each_context in enumerate(log_probability_tables):
-            true_word_for_curr_context = true_words[idx_curr_context]
-            probability_for_true_word = probability_distributions_for_each_context[true_word_for_curr_context]
-            probability_for_predicted_word = torch.max(probability_distributions_for_each_context)
+            for idx_curr_context, probability_distributions_for_each_context in enumerate(log_probability_tables):
+                true_word_for_curr_context = true_words[idx_curr_context]
+                probability_for_true_word = probability_distributions_for_each_context[true_word_for_curr_context]
+                probability_for_predicted_word = torch.max(probability_distributions_for_each_context)
 
-            probability_normalized = (probability_for_predicted_word - probability_for_true_word) / (probability_for_predicted_word + 1e-9)
+                probability_normalized = (probability_for_predicted_word - probability_for_true_word) / (probability_for_predicted_word + 1e-9)
 
-            normal_probabilities = torch.cat([normal_probabilities, probability_normalized])
+                normal_probabilities = torch.cat([normal_probabilities, probability_normalized])
 
-        # Trimming mean by 0.05 (from each side) and dividing by the length
-        trimmed_mean = stats.trim_mean(normal_probabilities.detach().numpy(), 0.05) / len(log_probability_tables)
+            # Trimming mean by 0.05 (from each side) and dividing by the length
+            trimmed_mean = stats.trim_mean(normal_probabilities.detach().numpy(), 0.05) / len(log_probability_tables)
 
-        probabilities.append([trimmed_mean, bio_label])
+            probabilities.append([trimmed_mean, bio_label])
 
         ## Evaluating on Training Data
         plt.style.use('seaborn-deep')
-
+        print(probabilities)
         probabilites_true = [item[0] for item in probabilities if item[1] == 1]
         probabilites_fake = [item[0] for item in probabilities if item[1] == 0]
 
@@ -880,10 +894,10 @@ def main():
         print(accuracy_score(testy, y_predictions))
 
     if params['model'] == 'LSTM_CLASSIFY':
-        encodings = read_encode('./hw#1/mix.train.tok',[],{},[],3) 
-        train_data,vocab,words = read_alltext('./hw#1/mix.train.tok',20,encodings[0],encodings[1])
-        valid_data,vocab,words = read_alltext('./hw#1/mix.valid.tok',20,vocab,words)
-        test_data,vocab,words = read_alltext('./hw#1/mix.test.tok',20,vocab,words)
+        encodings = read_encode(params['trainname'],[],{},[],3) 
+        train_data,vocab,words = read_alltext(params['trainname'],20,encodings[0],encodings[1])
+        valid_data,vocab,words = read_alltext(params['validname'],20,vocab,words)
+        test_data,vocab,words = read_alltext(params['testname'],20,vocab,words)
         model_lstm.load_state_dict(torch.load('./model/lstm_mixed.pt',  map_location=device)['model_state_dict'])
         criterion = nn.CrossEntropyLoss() 
         batch_size = 20
@@ -894,13 +908,14 @@ def main():
         print(f'Test Perplexity: {test_loss:.3f}')
         print(params)
 
-        word_tensors = make_tensors('./hw#1/mix.test.tok',vocab,words)
+        word_tensors = make_tensors(params['testname'],vocab,words)
         input = torch.tensor(word_tensors[0][100],device = device).reshape(-1,1)
 
         y_true=[] 
         y_pred=[]
         correct = 0
         for index in range(len(word_tensors[1])):
+            print(index)
             item = torch.tensor(word_tensors[0][index],device = device).reshape(-1,1)
             prediction = LSTM_Classify(item,model_lstm,vocab,words,device,seq_len)
             actual = word_tensors[1][index] 
@@ -915,10 +930,11 @@ def main():
             if prediction == actual:
                 correct += 1
             
-            # print(correct)
+            print(correct)
             print(correct/len(word_tensors[1]))
 
-        confusion_matrix(y_true, y_pred)
+        print(confusion_matrix(y_true, y_pred))
+        print(accuracy_score(y_true, y_predictions))
 
 if __name__ == "__main__":
     main()
