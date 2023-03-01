@@ -15,7 +15,7 @@ python hw1.py -model "model" -trainname "train_file_path" -testname "test_file_p
 
 
 NOTE: All arg options are optional and only specifying model would work for most cases.
-Also LSTM model works on .tok files so be careful while specifying paths for took files.
+Also LSTM model works on .tok files so be careful while specifying paths for tok files.
 
 ```
 
